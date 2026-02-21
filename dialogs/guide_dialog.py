@@ -6,7 +6,7 @@ from states import GuideSG, StartSG
 guide_dialog = Dialog(
     Window(
         Const("Выберите интересующий вопрос:"),
-        Start("Назад 🔙", state=StartSG.main_menu, id="guide_start_1"),
+        Start(Const("Назад 🔙"), state=StartSG.main_menu, id="guide_start_1"),
         state=GuideSG.menu,
     ),
 )

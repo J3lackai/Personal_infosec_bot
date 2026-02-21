@@ -6,7 +6,7 @@ from states import ToolSG, StartSG
 tool_dialog = Dialog(
     Window(
         Const("Выберите инструмент:"),
-        Start("Назад 🔙", state=StartSG.main_menu, id="tool_start_1"),
+        Start(Const("Назад 🔙"), state=StartSG.main_menu, id="tool_start_1"),
         state=ToolSG.menu,
     ),
 )
