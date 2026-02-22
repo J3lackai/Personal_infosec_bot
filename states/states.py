@@ -11,3 +11,7 @@ class ToolSG(StatesGroup):
 
 class GuideSG(StatesGroup):
     menu = State()
+
+
+class LanguageSG(StatesGroup):
+    menu = State()
