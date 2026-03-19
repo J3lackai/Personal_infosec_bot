@@ -1,7 +1,7 @@
 from aiogram_dialog import Dialog, Window
 from aiogram_dialog.widgets.text import Const
 from aiogram_dialog.widgets.kbd import Row, Column, Group, Url, Start
-from states import StartSG, ToolSG, GuideSG, LanguageSG
+from states import StartSG, ToolSG, GuideSG, LanguageSG, AISG
 
 start_dialog = Dialog(
     Window(
@@ -16,6 +16,11 @@ start_dialog = Dialog(
                     text=Const("Выбор языка / Сhoose language"),
                     id="menu_language",
                     state=LanguageSG.menu,
+                ),
+                Start(
+                    text=Const("ИИ асистент по безопасности"),
+                    id="menu_ai",
+                    state=AISG.menu,
                 ),
                 Url(
                     text=Const("Контакт разработчика"),
