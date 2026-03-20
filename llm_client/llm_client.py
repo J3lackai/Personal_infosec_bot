@@ -1,62 +1,94 @@
-import asyncio
+from typing import Optional, Dict, Any
 from aiohttp import ClientSession, TCPConnector, ClientTimeout
 from loguru import logger
-import json
+import asyncio
 
 
 class SecurityBotLLMClient:
-    """Клиент для взаимодействия с HTTP-сервером LLM"""
+    """Клиент для взаимодействия с HTTP-сервером LLM (llama.cpp API /completion)"""
 
-    def __init__(self, base_url="http://127.0.0.1", port=8081):
+    async def __init__(
+        self, base_url="http://127.0.0.1", port=8081, timeout=30, n_connects=4
+    ):
         self.base_url = base_url.strip()
         self.port = port
+        self.timeout = timeout
+        self.n_connects = n_connects
+        self.session = await self.connect(self)
 
-    async def generate(self, prompt: str):
-        """Отправляет запрос к LLM и получает ответ"""
+    async def connect(self) -> ClientSession:
+        timeout = ClientTimeout(total=self.timeout)
+        async with ClientSession(timeout=timeout) as session:
+            connector = TCPConnector(
+                limit=self.n_connects, limit_per_host=None
+            )  # Увеличиваем лимит соединений
 
-        timeout = ClientTimeout(total=30.0)  # Таймаут 30 секунд
+            await connector.connect(
+                session, self.base_url.rstrip("/"), port=self.port, ssl=False
+            )
+        return session
 
-        payload = {
-            "model": "",  # Если у тебя нет параметра model в URL — оставь пустым или задай ID модели вручную
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "Ты ИИ-ассистент по компьютерной безопасности. Отвечай кратко и точно.",
-                },
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.7,
-            "stream": False,  # Если сервер поддерживает потоковую передачу — поставь True для экономии времени ответа
-        }
+    async def generate(
+        self, messages_list: list[Dict[str, str]], temperature: float = 0.7
+    ) -> Optional[Dict[str, Any]]:
+        """Отправляет запрос к LLM и получает ответ. Возвращает dict или None при ошибке."""
 
         try:
-            async with ClientSession(timeout=timeout) as session:
-                connector = TCPConnector(limit=10)
-                await connector.connect(
-                    session, self.base_url, port=self.port, ssl=False
-                )
+            payload: Dict[str, Any] = {
+                "model": "",
+                "messages": messages_list,
+                "temperature": temperature,
+                "stream": False,
+            }
 
-                payload_json = f'{{"model": "", "messages": [{", ".join(f"{k}: {v}" for k, v in json.dumps(payload).split(",")[:-1])}, {"role": "user", "content": "{prompt}"}]}}'.replace(
-                    " ", ""
-                )  # Упрощённая JSON структура
-                async with session.post(
-                    f"http://{self.base_url}:{self.port}/generate",
-                    data=json.dumps(payload),
-                    content_type="application/json",
-                ) as response:
-                    if response.status == 200:
-                        return await response.json()  # Получаем ответ LLM
+        except Exception as e:
+            logger.exception("Ошибка формирования запроса к LLM.")
+            return None
 
-                    else:
-                        raise Exception(
-                            f"Ошибка сервера {response.status}: {await response.text()}"
+        try:
+            url = f"http://{self.base_url}:{self.port}/v1/chat/completions"
+
+            response = await self.session.post(url, json=payload)
+
+        except ConnectionRefusedError as e:  # Соединение отвергнуто (сервер недоступен)
+            logger.error(f"Соединение отвергнуто (сервер недоступен): {e}")
+
+        try:
+            if response.status == 200:
+                result = await response.json()
+                logger.debug("Успешно получили ответ от сервера")
+                return result
+
+            elif response.status in [
+                503,
+                401,
+            ]:  # Ошибки загрузки модели или авторизации
+                try:
+                    error_text = (
+                        await response.text()
+                        if hasattr(response, "text")
+                        else "Ошибка сервера"
+                    )
+
+                    logger.warning(
+                        f"Сервер LLM недоступен (код {response.status}): {error_text}"
+                    )
+
+                except Exception as e:
+                    logger.error(f"Ошибки загрузки модели или авторизации {e}")
+
+            else:  # Остальные ошибки HTTP статуса
+                try:
+                    if hasattr(response, "text"):
+                        error_text = await response.text()
+
+                        logger.error(
+                            f"Ошибка сервера HTTP {response.status}: {error_text}"
                         )
 
-        except asyncio.TimeoutError:
-            logger.error("Таймаут соединения с локальным LLM.")
-
-        except ConnectionRefusedError as e:
-            logger.warning(f"Соединение отвергнуто (сервер недоступен): {e}")
-
-        except Exception as e:  # Обработка остальных ошибок
-            logger.exception(f"Неожиданная ошибка при запросе к LLM:{e}")
+                except Exception:  # Ошибка при чтении тела ответа других кодов
+                    logger.warning("Ошибка при чтении тела ответа других кодов")
+        except asyncio.TimeoutError:  # Таймаут соединения
+            logger.warning("Таймаут соединения с локальным LLM.")
+        except Exception as e:
+            logger.error(f"Неизвестная ошибка: {e}")
