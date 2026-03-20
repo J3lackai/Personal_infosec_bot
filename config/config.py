@@ -26,10 +26,22 @@ class TgBot:
 
 
 @dataclass
+class LLMServerSettings:
+    timeout: float
+    n_connects: int
+    sys_prompt: str
+    base_url: str
+    port: str
+    temperature: float
+    ai_busy_msg: str
+
+
+@dataclass
 class Config:
     bot: TgBot
     assets: Assets
     redis: Redis
+    llm_server: LLMServerSettings
 
 
 def load_config(path: str | None = None) -> Config:
@@ -48,4 +60,18 @@ def load_config(path: str | None = None) -> Config:
             file_id2=os.getenv("video_file_id_2", ""),
         ),
         redis=Redis(host=os.getenv("REDIS_HOST", "")),
+        llm_server=LLMServerSettings(
+            timeout=float(os.getenv("LLM_TIMEOUT", 30)),
+            sys_prompt=os.getenv(
+                "SYS_PROMPT",
+                "Ты ИИ-ассистент по компьютерной безопасности. Отвечай кратко и точно.",
+            ),
+            port=os.getenv("LLM_PORT", 8081),
+            base_url=os.getenv("LLM_BASE_URL", "http://192.168.31.16"),
+            temperature=float(os.getenv("LLM_TEMPERATURE", 0.7)),
+            ai_busy_msg=os.getenv(
+                "AI_BUSY_MSG",
+                "ИИ ассистент сейчас недоступен 🙁\nПопробуйте обратиться к нему позже.",
+            ),
+        ),
     )

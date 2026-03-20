@@ -14,7 +14,7 @@ from middlewares import (
 )
 from handlers.start import router as usr_router
 from aiogram_dialog import setup_dialogs
-from dialogs import start_dialog, tool_dialog, guide_dialog, language_dialog
+from dialogs import start_dialog, tool_dialog, guide_dialog, language_dialog, ai_dialog
 
 
 async def main() -> None:
@@ -54,12 +54,13 @@ async def main() -> None:
     usr_router.include_router(start_dialog)
     usr_router.include_router(tool_dialog)
     usr_router.include_router(guide_dialog)
+    usr_router.include_router(ai_dialog)
     usr_router.include_router(language_dialog)
 
     # routers
 
     dp.include_router(usr_router)
-    setup_dialogs(dp)
+    setup_dialogs(dp, startup_data={"server_settings": config.llm_server})
 
     await bot.delete_webhook(drop_pending_updates=True)
 
