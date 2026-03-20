@@ -18,4 +18,6 @@ class LanguageSG(StatesGroup):
 
 
 class AISG(StatesGroup):
-    menu = State()
+    first_menu = State()
+
+    retry_menu = State()

@@ -1,66 +1,70 @@
-from llm_client import SecurityBotLLMClient
 from loguru import logger
 from aiogram.types import Message
-import asyncio
 from aiogram_dialog import DialogManager
 from config import LLMServerSettings
+from states import AISG
+import openai
+from openai import (
+    AuthenticationError,
+    APIConnectionError,
+)
 
 
-async def correct_prompt(message: Message, manager: DialogManager):
+async def correct_prompt(
+    message: Message, widget, dialog_manager: DialogManager, value: str
+):
+    async def server_busy(message: Message, dialog_manager: DialogManager, settings):
+        logger.debug("Недостучались к серверу LLM")
+        await message.answer(settings.ai_busy_msg)
+        await dialog_manager.switch_to(state=AISG.retry_menu)
+
     """Обработка ответа от LLM и вывод в диалог"""
 
     try:
-        settings: LLMServerSettings = manager.middleware_data.get("server_settings")
-        client = SecurityBotLLMClient(
-            base_url=settings.base_url,
-            port=settings.port,
-            n_connects=settings.n_connects,
-            timeout=settings.timeout,
-        )  # Достаём из конфига
-
-        prompt_text = message.text
-
-        messages_list = [
-            {
-                "role": "system",
-                "content": settings.sys_prompt,  # sys_prompt из конфига
-            },
-            {"role": "user", "content": prompt_text},
-        ]
-        response_data = await client.generate(
-            messages_list, temperature=settings.temperature
+        settings: LLMServerSettings = dialog_manager.middleware_data.get(
+            "server_settings"
         )
-        if (
-            isinstance(response_data, dict)
-            and "choices" in response_data
-            and len(response_data["choices"]) > 0
-        ):
-            choice = response_data["choices"][0]
+        prompt_text = value
 
-            # Пытаемся получить content из message
-            if isinstance(choice.get("message"), dict):
-                ai_answer = str(choice["message"].get("content", ""))
-                if len(ai_answer.strip()) > 0:
-                    message.answer("ИИ Ассистент:\n" + ai_answer)
-                    return
+        client = openai.OpenAI(
+            timeout=settings.timeout,
+            base_url=settings.base_url + ":" + settings.port,
+            api_key=settings.psswrd,
+            max_retries=0,  # отключаем встроенные ретраи, будем управлять сами
+        )
 
-        message.answer(settings.ai_busy_msg)
+        completion = client.chat.completions.create(
+            model="qwen3.5-9b",
+            messages=[
+                {"role": "system", "content": settings.sys_prompt},
+                {"role": "user", "content": prompt_text},
+            ],
+        )
+        logger.debug("Успешно отправили сообщение AI пользователю")
+        await message.answer(completion.choices[0].message.content)
+        await dialog_manager.switch_to(state=AISG.retry_menu)
 
-    except KeyError as e:
-        logger.warning(f"Ключ {e} не найден в choice['message']")
-    except asyncio.TimeoutError:
-        logger.warning("Таймаут запроса к LLM.")
+    except APIConnectionError:
+        logger.error(f"❌ Соединение потеряно: Cannot reach {settings.base_url}")
+        await server_busy(message, dialog_manager, settings)
+    except AuthenticationError:
+        logger.error("❌ Неправиильный ключ API")
+        await server_busy(message, dialog_manager, settings)
+    except TimeoutError:
+        logger.error(f"❌ Время истекло: {settings.base_url}")
+        await server_busy(message, dialog_manager, settings)
     except Exception as e:
-        logger.exception(f"Ошибка парсинга ответа LLM. {e}")
+        logger.error(f"❌ Неожиданная ошибка сети: {e}")
+        await server_busy(message, dialog_manager, settings)
 
 
-async def error_prompt(message: Message):
-    message.answer(
+async def error_prompt(message: Message, dialog_manager, widget, error):
+    await message.answer(
         "❌ Ошибка: Длина промпта должна быть больше 0 символов и меньше либо равна 512"
     )
 
 
-async def no_text(message: Message):
-    message.answer(
+async def no_text(message: Message, dialog_manager, error):
+    await message.answer(
         "❌ Ошибка: Отправить ИИ-ассистенту можно только текстовое сообщение."
     )

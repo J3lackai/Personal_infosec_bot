@@ -8,18 +8,14 @@ from redis.asyncio import Redis
 from loguru import logger
 from utils import safe_start_polling
 from config import Config, load_config
-from middlewares import (
-    ThrottlingMiddleware,
-    IfBotBlockedMiddleware,
-)
-from handlers.start import router as usr_router
+from middlewares import ThrottlingMiddleware, IfBotBlockedMiddleware, ConfigMiddleware
+from handlers import router as usr_router
 from aiogram_dialog import setup_dialogs
 from dialogs import start_dialog, tool_dialog, guide_dialog, language_dialog, ai_dialog
 
 
 async def main() -> None:
     config: Config = load_config()
-
     bot = Bot(
         token=config.bot.token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
@@ -40,7 +36,6 @@ async def main() -> None:
         storage=storage,
         fsm_strategy=FSMStrategy.USER_IN_CHAT,
     )
-
     logger.debug("Init bot/redis/storage/dp")
 
     # middlewares
@@ -48,7 +43,7 @@ async def main() -> None:
         IfBotBlockedMiddleware()
     )  # Не обрабатываем апдейты если бот в блоке
     dp.message.outer_middleware(ThrottlingMiddleware(redis=redis))  # Защита от спама
-
+    dp.update.middleware(ConfigMiddleware(config.llm_server))
     # filters
     # dialogs
     usr_router.include_router(start_dialog)
@@ -60,7 +55,7 @@ async def main() -> None:
     # routers
 
     dp.include_router(usr_router)
-    setup_dialogs(dp, startup_data={"server_settings": config.llm_server})
+    setup_dialogs(dp)
 
     await bot.delete_webhook(drop_pending_updates=True)
 
@@ -68,7 +63,7 @@ async def main() -> None:
         logger.info("Bot started")
         await safe_start_polling(dp, bot)
     finally:
-        await redis.close()
+        await redis.aclose()
         await bot.session.close()
 
 

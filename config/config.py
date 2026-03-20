@@ -28,7 +28,7 @@ class TgBot:
 @dataclass
 class LLMServerSettings:
     timeout: float
-    n_connects: int
+    psswrd: str
     sys_prompt: str
     base_url: str
     port: str
@@ -69,6 +69,7 @@ def load_config(path: str | None = None) -> Config:
             port=os.getenv("LLM_PORT", 8081),
             base_url=os.getenv("LLM_BASE_URL", "http://192.168.31.16"),
             temperature=float(os.getenv("LLM_TEMPERATURE", 0.7)),
+            psswrd=(os.getenv("LLM_PSSWRD")),
             ai_busy_msg=os.getenv(
                 "AI_BUSY_MSG",
                 "ИИ ассистент сейчас недоступен 🙁\nПопробуйте обратиться к нему позже.",

@@ -1,6 +1,6 @@
 from aiogram_dialog import Dialog, Window
 from aiogram_dialog.widgets.text import Const
-from aiogram_dialog.widgets.kbd import Row, Column, Group, Url, Start
+from aiogram_dialog.widgets.kbd import Row, Column, Group, Url, Start, Button
 from states import StartSG, ToolSG, GuideSG, LanguageSG, AISG
 
 start_dialog = Dialog(
@@ -20,7 +20,7 @@ start_dialog = Dialog(
                 Start(
                     text=Const("ИИ асистент по безопасности"),
                     id="menu_ai",
-                    state=AISG.menu,
+                    state=AISG.first_menu,
                 ),
                 Url(
                     text=Const("Контакт разработчика"),
