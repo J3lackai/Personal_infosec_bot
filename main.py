@@ -8,10 +8,10 @@ from redis.asyncio import Redis
 from loguru import logger
 from utils import safe_start_polling
 from config import Config, load_config
-from middlewares import ThrottlingMiddleware, IfBotBlockedMiddleware, ConfigMiddleware
+from middlewares import ThrottlingMiddleware, IfBotBlockedMiddleware, DataLoadMiddleware
 from handlers import router as usr_router
 from aiogram_dialog import setup_dialogs
-from dialogs import start_dialog, tool_dialog, guide_dialog, language_dialog, ai_dialog
+from dialogs import start_dialog, tool_dialog, guide_dialog, ai_dialog
 
 
 async def main() -> None:
@@ -43,14 +43,13 @@ async def main() -> None:
         IfBotBlockedMiddleware()
     )  # Не обрабатываем апдейты если бот в блоке
     dp.message.outer_middleware(ThrottlingMiddleware(redis=redis))  # Защита от спама
-    dp.update.middleware(ConfigMiddleware(config.llm_server))
+    dp.update.middleware(DataLoadMiddleware(config.llm_server))
     # filters
     # dialogs
     usr_router.include_router(start_dialog)
     usr_router.include_router(tool_dialog)
     usr_router.include_router(guide_dialog)
     usr_router.include_router(ai_dialog)
-    usr_router.include_router(language_dialog)
 
     # routers
 
