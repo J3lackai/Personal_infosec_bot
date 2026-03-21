@@ -7,13 +7,16 @@ class StartSG(StatesGroup):
 
 class ToolSG(StatesGroup):
     menu = State()
+    check_links = State()
+    whois = State()
+    check_leaks = State()
+    analysis_headers = State()
+    check_ssl = State()
+    generate_psswrd = State()
+    check_psswrd = State()
 
 
 class GuideSG(StatesGroup):
-    menu = State()
-
-
-class LanguageSG(StatesGroup):
     menu = State()
 
 

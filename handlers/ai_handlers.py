@@ -45,10 +45,10 @@ async def correct_prompt(
         await dialog_manager.switch_to(state=AISG.retry_menu)
 
     except APIConnectionError:
-        logger.error(f"❌ Соединение потеряно: Cannot reach {settings.base_url}")
+        logger.error(f"❌ Соединение потеряно: {settings.base_url}")
         await server_busy(message, dialog_manager, settings)
     except AuthenticationError:
-        logger.error("❌ Неправиильный ключ API")
+        logger.error("❌ Неправильный ключ API")
         await server_busy(message, dialog_manager, settings)
     except TimeoutError:
         logger.error(f"❌ Время истекло: {settings.base_url}")

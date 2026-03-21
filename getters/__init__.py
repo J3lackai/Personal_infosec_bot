@@ -1,3 +1,3 @@
-from .getters import get_languages
+from .getters import guide_getter
 
-__all__ = ["get_languages"]
+__all__ = ["guide_getter"]
