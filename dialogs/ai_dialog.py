@@ -4,7 +4,7 @@ from aiogram_dialog.widgets.kbd import Start
 from aiogram_dialog.widgets.input import TextInput, MessageInput
 from states import AISG, StartSG
 from aiogram.types import ContentType
-from utils import promt_check
+from utils import promt_validate
 from handlers import correct_prompt, error_prompt, no_text
 
 ai_dialog = Dialog(
@@ -12,7 +12,7 @@ ai_dialog = Dialog(
         Const("Напишите сообщение ИИ ассистенту:"),
         TextInput(
             id="ai1_input",
-            type_factory=promt_check,
+            type_factory=promt_validate,
             on_success=correct_prompt,
             on_error=error_prompt,
         ),
@@ -23,7 +23,7 @@ ai_dialog = Dialog(
     Window(
         TextInput(
             id="ai2_input",
-            type_factory=promt_check,
+            type_factory=promt_validate,
             on_success=correct_prompt,
             on_error=error_prompt,
         ),

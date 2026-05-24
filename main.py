@@ -43,7 +43,7 @@ async def main() -> None:
         IfBotBlockedMiddleware()
     )  # Не обрабатываем апдейты если бот в блоке
     dp.message.outer_middleware(ThrottlingMiddleware(redis=redis))  # Защита от спама
-    dp.update.middleware(ConfigMiddleware(config.llm_server))
+    dp.update.middleware(ConfigMiddleware(config.groq_server, config.external_services))
     # filters
     # dialogs
     usr_router.include_router(start_dialog)

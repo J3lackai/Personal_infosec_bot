@@ -2,13 +2,17 @@ from .ai_handlers import correct_prompt, no_text, error_prompt
 from .start import router
 from .guide_handlers import on_guide_select
 from .tool_handlers import (
-    check_links_url,
-    whois_domain,
+    correct_link,
+    analysis_site,
     leaks_email,
-    headers_url,
-    ssl_url,
     generate_password,
     check_password_strength,
+    multiselect_clicked_prop,
+    multiselect_clicked_case,
+    error_len_handler,
+    correct_len_handler,
+    set_default_multiselect,
+    error_link
 )
 
 __all__ = [
@@ -16,12 +20,16 @@ __all__ = [
     "no_text",
     "error_prompt",
     "router",
-    "check_links_url",
-    "whois_domain",
+    "correct_link",
+    "analysis_site",
     "leaks_email",
-    "headers_url",
-    "ssl_url",
     "generate_password",
     "check_password_strength",
     "on_guide_select",
+    "multiselect_clicked_prop",
+    "multiselect_clicked_case",
+    "error_len_handler",
+    "correct_len_handler",
+    "set_default_multiselect",
+    "error_link"
 ]

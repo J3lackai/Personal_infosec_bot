@@ -8,12 +8,14 @@ class StartSG(StatesGroup):
 
 class ToolSG(StatesGroup):
     menu = State()
-    check_links = State()
-    whois = State()
+    check_link = State()
+    analysis_site = State()
     check_leaks = State()
-    analysis_headers = State()
-    check_ssl = State()
+    choose_psswrd_prop = State()
+    choose_psswrd_case = State()
+    choose_len_psswrd = State()
     generate_psswrd = State()
+    input_psswrd = State()
     check_psswrd = State()
 
 
