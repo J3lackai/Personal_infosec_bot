@@ -7,6 +7,9 @@ def promt_validate(text: str) -> str:
 
     return text
 
+def email_validate(email:str)-> str:
+
+    return email
 
 def len_validate(len_str: str) -> str:
     try:

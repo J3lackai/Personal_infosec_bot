@@ -13,6 +13,8 @@ from datetime import datetime
 from loguru import logger
 from states import ToolSG
 import asyncio
+from xposedornot import XposedOrNot
+from xposedornot.exceptions import NotFoundError, RateLimitError, APIError
 from lexicon import vt_error_mssgs, vt_fallback_e_msg
 # Коды ошибок VirusTotal API → человекочитаемые сообщения
 
@@ -107,9 +109,6 @@ async def correct_len_handler(
 async def error_len_handler(message: Message, widget, manager, error):
     await message.answer("❌ Введите только число\nПример: 12")
 
-async def error_len_handler(message: Message, widget, manager, error):
-    await message.answer("❌ Введите только число\nПример: 12")
-
 async def error_link(message: Message, widget, manager, error):
     await message.answer("❌ Введите корректную ссылку\nПример: https://example.com")
 
@@ -200,38 +199,44 @@ async def check_password_strength(
         text += "💡 Рекомендации:\n" + "\n".join(tips)
     await message.answer(text)
 
-
-
-def leaks_email(email: str, widget, dialog_manager) -> Dict[str, Any]:
-    """Проверяет email на утечки через HaveIBeenPwned API."""
-    clean_email = email.lower().strip()
-    result = {"email": clean_email, "has_leaks": False, "leaks": []}
-
+async def correct_email(
+    message: Message,
+    widget,
+    dialog_manager,
+    email: str,
+) -> None:
+    xon = XposedOrNot()
     try:
-        response = requests.get(
-            f"https://haveibeenpwned.com/api/v3/breachedaccount/{clean_email}",
-            headers={"hibp-api-key": "YOUR_API_KEY", "user-agent": "SecurityBot"},
-            timeout=10,
+        result = await asyncio.to_thread(xon.check_email, email)
+        logger.info(f"Ищем утечки почты:{email}")
+        breach_list = result.breaches[0] if result.breaches else []
+        num_breaches=len(breach_list)
+        if num_breaches == 0:
+            await message.answer("✅ Email не найден ни в одной утечке")
+            return
+        if num_breaches > 10: #Обрезаем если слишком много результатов
+            breaches_text = "\n".join(f"• {breach_list[i]}" for i in range(10))
+            breaches_text += "\n... (и другие)\n• " + breach_list[num_breaches-1]
+        else: 
+            breaches_text = "\n".join(f"• {breach_list[i]}" for i in range(num_breaches))
+        await message.answer(
+            f"⚠️ Найдено утечек: {num_breaches}\n\n{breaches_text}"
         )
-        if response.status_code == 200:
-            breaches = response.json()
-            result["has_leaks"] = len(breaches) > 0
-            result["leaks"] = [
-                {
-                    "name": breach.get("Name", ""),
-                    "date": breach.get("BreachDate", ""),
-                    "data_classes": breach.get("DataClasses", []),
-                }
-                for breach in breaches
-            ]
-        elif response.status_code == 404:
-            result["has_leaks"] = False
-    except requests.RequestException as e:
-        logger.error(f"Ошибка HaveIBeenPwned API: {e}")
-
-    return result
+    except NotFoundError:
+        await message.answer("✅ Email не найден ни в одной утечке")
+    except RateLimitError:
+        await asyncio.sleep(1)
+        await correct_email(message, widget, dialog_manager, email)
+    except APIError as e:
+        await message.answer("Сервис в данный момент недоступен 😔\n Попробуйте позже")
+        logger.error(f"❌ Ошибка API: {e}")
 
 
+
+async def error_email(message: Message, widget, manager, error):
+    await message.answer(
+        "❌ Ошибка: Введите корректный email. Например: example@gmail.com"
+    )
 async def correct_link(
     message: Message,
     widget,

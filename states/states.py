@@ -5,6 +5,9 @@ class StartSG(StatesGroup):
     main_menu = State()
     about_bot = State()
 
+class ContactDev(StatesGroup):
+    send_message= State()
+    complete = State()
 
 class ToolSG(StatesGroup):
     menu = State()
@@ -25,6 +28,6 @@ class GuideSG(StatesGroup):
 
 
 class AISG(StatesGroup):
-    first_menu = State()
+    send_menu = State()
 
-    retry_menu = State()
+    answer_send_menu = State()

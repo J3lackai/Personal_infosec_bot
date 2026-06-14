@@ -12,12 +12,6 @@ class Redis:
 
 
 @dataclass
-class Assets:
-    file_id1: str
-    file_id2: str
-
-
-@dataclass
 class TgBot:
     token: str
     log: str
@@ -26,6 +20,7 @@ class TgBot:
 @dataclass
 class Services:
     virus_total_key: str
+    telegram_id_dev: int
 @dataclass
 class GroqServerSettings:
     timeout: float
@@ -54,7 +49,8 @@ def load_config(path: str | None = None) -> Config:
             rate_lim=os.getenv("RATE_LIMIT", 1),
         ),
         external_services=Services(
-            virus_total_key = os.getenv("VIRUSTOTAL_API_KEY")
+            virus_total_key = os.getenv("VIRUSTOTAL_API_KEY"),
+            telegram_id_dev = os.getenv("TELEGRAM_ID_DEV"),
         ),
         redis=Redis(host=os.getenv("REDIS_HOST", "")),
         groq_server=GroqServerSettings(

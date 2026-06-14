@@ -14,7 +14,7 @@ async def correct_prompt(
     async def server_busy(message: Message, dialog_manager: DialogManager, settings):
         logger.debug("Недостучались к серверу Groq")
         await message.answer(settings.ai_busy_msg)
-        await dialog_manager.switch_to(state=AISG.retry_menu)
+        await dialog_manager.switch_to(state=AISG.answer_send_menu)
 
     """Обработка ответа от Groq и вывод в диалог"""
 
@@ -30,25 +30,25 @@ async def correct_prompt(
                 {"role": "user", "content": prompt_text},
             ],
             model="qwen/qwen3-32b",
-        )
-        logger.debug("Успешно отправили сообщение AI пользователю")
+        )    
         msg = re.sub(
             r"<think>.*?</think>",
             "",
             chat_completion.choices[0].message.content,
             flags=re.DOTALL,
         )
-        await message.answer(msg)
-        await dialog_manager.switch_to(state=AISG.retry_menu)
+        dialog_manager.dialog_data["groq_answer"] = msg
+        logger.debug("Успешно отправили сообщение AI пользователю")
+        await dialog_manager.next()
 
-    except APIConnectionError:
-        logger.error(f"❌ Соединение потеряно: {settings.base_url}")
+    except APIConnectionError as e:
+        logger.error(f"❌ Соединение потеряно: {e}")
         await server_busy(message, dialog_manager, settings)
     except AuthenticationError:
         logger.error("❌ Неправильный ключ API")
         await server_busy(message, dialog_manager, settings)
-    except TimeoutError:
-        logger.error(f"❌ Время истекло: {settings.base_url}")
+    except TimeoutError as e:
+        logger.error(f"❌ Время истекло: {e}")
         await server_busy(message, dialog_manager, settings)
     except Exception as e:
         logger.error(f"❌ Неожиданная ошибка сети: {e}")

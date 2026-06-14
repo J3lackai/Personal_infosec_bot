@@ -11,13 +11,13 @@ from aiogram_dialog.widgets.kbd import (
     Back,
 )
 from states import ToolSG, StartSG
-from utils import len_validate, validate_link
+from utils import len_validate, validate_link, email_validate
 import operator
 from getters import get_pswrd_prop, get_pswrd_case
 from handlers import (
     correct_link,
     analysis_site,
-    leaks_email,
+    correct_email,
     generate_password,
     check_password_strength,
     multiselect_clicked_prop,
@@ -25,7 +25,8 @@ from handlers import (
     correct_len_handler,
     error_len_handler,
     set_default_multiselect,
-    error_link
+    error_link,
+    error_email
 )
 # отключаем стандартные callback_data для примера с on_click
 
@@ -45,7 +46,7 @@ tool_dialog = Dialog(
                     id="SwitchTo_check_site",
                 ),
                 SwitchTo(
-                    text=Const(text="Проверка утечки пароля"),
+                    text=Const(text="Проверка утечки почты"),
                     state=ToolSG.check_leaks,
                     id="SwitchTo_check_leaks",
                 ),
@@ -90,11 +91,7 @@ tool_dialog = Dialog(
         # Окно: Проверка утечек паролей (запрос email)
         Window(
             Const("Введите email для проверки на утечки:"),
-            Button(
-                text=Const(text="Отправить"),
-                on_click=leaks_email,
-                id="Button_leaks_email",
-            ),  # Хендлер принимает input_text и state
+            TextInput(on_success=correct_email, on_error=error_email, type_factory=email_validate, id="textinput_leak"),
             Start(Const("Назад 🔙"), state=ToolSG.menu, id="tool_start_4"),
             state=ToolSG.check_leaks,
         ),

@@ -1,7 +1,7 @@
 from aiogram_dialog import Dialog, Window
 from aiogram_dialog.widgets.text import Const
 from aiogram_dialog.widgets.kbd import Row, Column, Group, Url, Start, Next, Back
-from states import StartSG, ToolSG, GuideSG, AISG
+from states import StartSG, ToolSG, GuideSG, AISG, ContactDev
 from lexicon import about
 
 start_dialog = Dialog(
@@ -17,11 +17,11 @@ start_dialog = Dialog(
                 Start(
                     text=Const("ИИ асистент по безопасности"),
                     id="menu_ai",
-                    state=AISG.first_menu,
+                    state=AISG.send_menu,
                 ),
-                Url(
-                    text=Const("Контакт разработчика"),
-                    url=Const("https://t.me/artemmmat"),
+                Start(
+                    text=Const("Связаться с разработчиком"),
+                    state=ContactDev.send_message,
                     id="contact_dev",
                 ),
             ),

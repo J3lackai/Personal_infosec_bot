@@ -1,7 +1,7 @@
 from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.kbd import Multiselect
 from lexicon import guides
-
+import re
 async def guide_getter(dialog_manager: DialogManager, **_):
     guides_: dict[str:str] = guides
     guides_items: list = []
@@ -15,6 +15,11 @@ async def guide_getter(dialog_manager: DialogManager, **_):
         n += 1
     dialog_manager.dialog_data["n_header"] = n_header
     return {"guides_items": guides_items}
+
+async def get_answer_groq(dialog_manager: DialogManager, **_):
+    msg = dialog_manager.dialog_data["groq_answer"]
+
+    return {"answer":msg}
 
 async def get_pswrd_prop(dialog_manager: DialogManager, **kwargs):
     prop = [
