@@ -17,7 +17,7 @@ class ToolSG(StatesGroup):
     choose_psswrd_prop = State()
     choose_psswrd_case = State()
     choose_len_psswrd = State()
-    generate_psswrd = State()
+    result = State()
     input_psswrd = State()
     check_psswrd = State()
 

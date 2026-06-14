@@ -21,6 +21,10 @@ async def get_answer_groq(dialog_manager: DialogManager, **_):
 
     return {"answer":msg}
 
+async def get_pswrd(dialog_manager: DialogManager, **kwargs):
+    pswrd = dialog_manager.dialog_data["pswrd"]
+    return {"pswrd":pswrd}
+
 async def get_pswrd_prop(dialog_manager: DialogManager, **kwargs):
     prop = [
         ("Есть цифры", "1"),

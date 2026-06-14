@@ -2,7 +2,6 @@ from aiogram_dialog import Dialog, Window
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.input import TextInput
 from aiogram_dialog.widgets.kbd import (
-    Button,
     SwitchTo,
     Start,
     Column,
@@ -13,7 +12,7 @@ from aiogram_dialog.widgets.kbd import (
 from states import ToolSG, StartSG
 from utils import len_validate, validate_link, email_validate
 import operator
-from getters import get_pswrd_prop, get_pswrd_case
+from getters import get_pswrd_prop, get_pswrd_case, get_pswrd
 from handlers import (
     correct_link,
     correct_site,
@@ -22,7 +21,6 @@ from handlers import (
     check_password_strength,
     multiselect_clicked_prop,
     multiselect_clicked_case,
-    correct_len_handler,
     error_len_handler,
     set_default_multiselect,
     error_link,
@@ -146,7 +144,7 @@ tool_dialog = Dialog(
             TextInput(
                 id="len_input",
                 type_factory=len_validate,
-                on_success=correct_len_handler,
+                on_success=generate_password,
                 on_error=error_len_handler,
             ),
             Back(
@@ -155,17 +153,10 @@ tool_dialog = Dialog(
             state=ToolSG.choose_len_psswrd,
         ),
         Window(
-            Const("Нажмите кнопку ниже:"),
-            Button(
-                text=Const(text="Сгенерировать пароль"),
-                on_click=generate_password,
-                id="Button_generate_password",
-            ),
-            Back(
-                Const("Назад 🔙"),
-            ),
-            state=ToolSG.generate_psswrd,
-        ),
+            Format("Ваш безопасный пароль: {pswrd}"),
+            SwitchTo(Const("Сгенерировать ещё один пароль 🔁"), state=ToolSG.choose_psswrd_prop, id="switchto_retry"),
+            Start(Const("В меню 🏠"), state=StartSG.main_menu, id="tool_start_9"),
+            state=ToolSG.result, getter=get_pswrd),
         # Окно: Проверка надежности пароля (запрос пароля)
         Window(
             Const("Введите пароль для проверки на прочность:"),
