@@ -4,7 +4,7 @@ from .contact_handlers import send_msg_dev
 from .guide_handlers import on_guide_select
 from .tool_handlers import (
     correct_link,
-    analysis_site,
+    correct_site,
     correct_email,
     generate_password,
     check_password_strength,
@@ -24,7 +24,7 @@ __all__ = [
     "error_prompt",
     "router",
     "correct_link",
-    "analysis_site",
+    "correct_site",
     "correct_email",
     "generate_password",
     "check_password_strength",

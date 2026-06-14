@@ -2,8 +2,7 @@ import secrets
 import string
 import re
 import vt
-from config import Services
-from typing import Dict, Any
+import socket
 from urllib.parse import urlparse
 import requests
 from aiogram_dialog.widgets.kbd import ManagedMultiselect
@@ -30,33 +29,23 @@ async def generate_password(
     len_psswrd = int(dialog_manager.dialog_data.get("len_psswrd", 12))
 
     chars = ""
+    specsym="!@#$%^&*()_+-=[]{}|;:,.<>?"
+    lower_ru = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
+    upper_ru = lower_ru.upper()
 
-    # Латиница
-    if "3" in list_prop:
-        if "1" in list_case:
-            chars += string.ascii_lowercase
+    # Используем паттерн dispatch table, формируем словарь
 
-        if "2" in list_case:
-            chars += string.ascii_uppercase
-
-    # Цифры
-    if "1" in list_prop:
-        chars += string.digits
-
-    # Спецсимволы
-    if "2" in list_prop:
-        chars += "!@#$%^&*()_+-=[]{}|;:,.<>?"
-
-    # Кириллица
-    if "4" in list_prop:
-        lower_ru = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
-        upper_ru = lower_ru.upper()
-
-        if "1" in list_case:
-            chars += lower_ru
-
-        if "2" in list_case:
-            chars += upper_ru
+    dict_prop = {"3":{"1":string.ascii_lowercase, "2":string.ascii_uppercase}, # Латиница
+                 "1":string.digits, # Цифры
+                 "2":specsym, # Спецсимволы
+                 "4":{"1":lower_ru, "2":upper_ru}} # Кириллица
+    for s in list_prop:
+        value : dict | str= dict_prop[s]
+        if isinstance(value,dict):
+            for i in list_case:
+                chars+=value[i]
+        else:
+            chars+=value
 
     # Если пользователь ничего не выбрал
     if not chars:
@@ -309,25 +298,28 @@ async def correct_link(
     await message.answer(text)
 
 
-def analysis_site(url: str) -> Dict[str, Any]:
-    """
-    Комплексная проверка сайта: WHOIS, SSL-сертификат, HTTP-заголовки.
-    Возвращает словарь с результатами каждой проверки и общим вердиктом.
-    """
-    result = {
-        "url": url,
-        "whois": None,
-        "ssl": None,
-        "headers": None,
-        "is_safe": False,
-        "message": "",
-    }
+async def correct_site(
+    message: Message,
+    widget,
+    dialog_manager,
+    url: str,
+) -> None:
+    import ssl
 
-    # ---------- 2. SSL (SSL Labs) ----------
+    SECURITY_HEADERS = [
+        "Strict-Transport-Security",
+        "Content-Security-Policy",
+        "X-Frame-Options",
+        "X-Content-Type-Options",
+        "Referrer-Policy",
+        "Permissions-Policy",
+    ]
+
     parsed = urlparse(url)
     hostname = parsed.hostname or url
+
+    # ---------- SSL (прямая проверка) ----------
     ssl_result = {
-        "grade": "F",
         "valid_ssl": False,
         "issuer": "",
         "expiry_date": "",
@@ -335,77 +327,104 @@ def analysis_site(url: str) -> Dict[str, Any]:
         "issues": [],
     }
     try:
-        resp = requests.get(
-            f"https://api.ssllabs.com/api/v3/analyze?host={hostname}", timeout=30
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            endpoints = data.get("endpoints", [])
-            if endpoints:
-                endpoint = endpoints[0]
-                ssl_result["grade"] = endpoint.get("grade", "F")
-                ssl_result["valid_ssl"] = ssl_result["grade"] not in ["F", "T"]
+        def _check_ssl():
+            ctx = ssl.create_default_context()
+            with ctx.wrap_socket(socket.socket(), server_hostname=hostname) as s:
+                s.settimeout(10)
+                s.connect((hostname, 443))
+                return s.getpeercert()
 
-                cert_info = endpoint.get("details", {}).get("cert", {})
-                ssl_result["issuer"] = cert_info.get("issuerSubject", "")
+        cert = await asyncio.to_thread(_check_ssl)
 
-                not_after = cert_info.get("notAfter", "")
-                if not_after:
-                    try:
-                        expiry_date = datetime.fromtimestamp(not_after / 1000)
-                        ssl_result["expiry_date"] = str(expiry_date)
-                        ssl_result["days_until_expiry"] = (
-                            expiry_date - datetime.now()
-                        ).days
-                        if ssl_result["days_until_expiry"] < 30:
-                            ssl_result["issues"].append("Сертификат скоро истекает")
-                    except (ValueError, OSError):
-                        pass
+        expiry = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y %Z")
+        days_left = (expiry - datetime.now()).days
+        ssl_result["expiry_date"] = str(expiry)
+        ssl_result["days_until_expiry"] = days_left
+        ssl_result["issuer"] = dict(x[0] for x in cert["issuer"]).get("organizationName", "")
+        ssl_result["valid_ssl"] = True
 
-                if ssl_result["grade"] in ["F", "T"]:
-                    ssl_result["issues"].append(
-                        f"Низкая оценка SSL: {ssl_result['grade']}"
-                    )
-    except requests.RequestException as e:
-        logger.error(f"Ошибка SSL Labs API: {e}")
-        ssl_result["issues"].append("Сервис проверки SSL недоступен")
-    result["ssl"] = ssl_result
+        if days_left < 30:
+            ssl_result["issues"].append("Сертификат скоро истекает")
 
-    # ---------- 3. HTTP-заголовки ----------
+    except ssl.SSLCertVerificationError:
+        ssl_result["issues"].append("Сертификат недействителен")
+    except ssl.SSLError as e:
+        ssl_result["issues"].append(f"Ошибка SSL: {e}")
+    except (socket.timeout, ConnectionRefusedError, OSError) as e:
+        if "getaddrinfo failed" in str(e):
+            ssl_result["issues"].append("Сайт недоступен или не существует")
+        else:
+            ssl_result["issues"].append("Не удалось подключиться")
+        logger.error(f"Ошибка SSL-проверки {hostname}: {e}")
+    # ---------- HTTP-заголовки (прямая проверка) ----------
     headers_result = {
-        "url": url,
         "score": 0,
-        "grade": "F",
-        "headers_found": {},
+        "found": [],
         "issues": [],
     }
     try:
-        resp = requests.get(f"https://securityheaders.com/api/v1?q={url}", timeout=10)
-        if resp.status_code == 200:
-            data = resp.json()
-            headers_result["score"] = data.get("score", 0)
-            headers_result["grade"] = data.get("grade", "F")
-            headers_result["headers_found"] = data.get("headers", {})
-            for header in data.get("missing", {}):
-                headers_result["issues"].append(f"Отсутствует заголовок: {header}")
-    except requests.RequestException as e:
-        logger.error(f"Ошибка SecurityHeaders API: {e}")
-        headers_result["issues"].append("Сервис проверки заголовков недоступен")
-    result["headers"] = headers_result
+        resp = await asyncio.to_thread(
+            requests.get, url, timeout=10, allow_redirects=True
+        )
+        found, missing = [], []
+        resp_headers_lower = {k.lower() for k in resp.headers}
 
+        for header in SECURITY_HEADERS:
+            if header.lower() in resp_headers_lower:
+                found.append(header)
+            else:
+                missing.append(header)
+                headers_result["issues"].append(f"Отсутствует: {header}")
+
+        headers_result["found"] = found
+        score = len(found) / len(SECURITY_HEADERS)
+        headers_result["score"] = round(score * 10)
+
+    except requests.RequestException as e:
+        if "NameResolutionError" in str(e) or "getaddrinfo failed" in str(e):
+            logger.error(f"DNS не резолвится для {url}: {e}")
+            headers_result["issues"].append("Сайт недоступен или не существует")
+        else:
+            logger.error(f"Ошибка проверки заголовков {url}: {e}")
+            headers_result["issues"].append("Не удалось подключиться к сайту")
     # ---------- Итоговый вердикт ----------
     ssl_ok = ssl_result["valid_ssl"]
-    headers_ok = headers_result["grade"] != "F" and headers_result["score"] > 0
+    headers_ok = headers_result["score"] > 5
 
     if ssl_ok and headers_ok:
-        result["is_safe"] = True
-        result["message"] = "Сайт безопасен: SSL и заголовки в порядке"
+        verdict_text = "✅ Сайт безопасен: SSL и заголовки в порядке"
     else:
         reasons = []
         if not ssl_ok:
             reasons.append("проблемы с SSL")
         if not headers_ok:
             reasons.append("небезопасные HTTP-заголовки")
-        result["message"] = "Сайт небезопасен: " + ", ".join(reasons)
+        verdict_text = "⚠ Сайт содержит недостатки конфигурации: " + ", ".join(reasons)
 
-    return result
+    # ---------- Ответ пользователю ----------
+    ssl_lines = [
+        f"🔒 SSL: {'✅ действителен' if ssl_ok else '❌ недействителен'}",
+        f"  Издатель: {ssl_result['issuer'] or '—'}",
+        f"  Истекает: {ssl_result['expiry_date'] or '—'} ({ssl_result['days_until_expiry']} дн.)",
+    ]
+    if ssl_result["issues"]:
+        ssl_lines += [f"  ⚠️ {i}" for i in ssl_result["issues"]]
+
+    headers_lines = [
+        f"🛡 HTTP-заголовки: оценка: {headers_result['score']}/10",
+        f"  Найдено {len(headers_result['found'])}/{len(SECURITY_HEADERS)}",
+    ]
+    if headers_result["issues"]:
+        headers_lines += [f"  ⚠️ {i}" for i in headers_result["issues"]]
+
+    text = "\n".join([
+        f"🌐 Проверка сайта: {url}",
+        "",
+        *ssl_lines,
+        "",
+        *headers_lines,
+        "",
+        verdict_text,
+    ])
+
+    await message.answer(text)

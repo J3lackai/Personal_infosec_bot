@@ -16,7 +16,7 @@ import operator
 from getters import get_pswrd_prop, get_pswrd_case
 from handlers import (
     correct_link,
-    analysis_site,
+    correct_site,
     correct_email,
     generate_password,
     check_password_strength,
@@ -79,12 +79,13 @@ tool_dialog = Dialog(
         ),
         # Окно: Проверка сайта (запрос URL)
         Window(
-            Const("Введите ссылку сайта для проверки:"),
-            Button(
-                text=Const(text="Отправить"),
-                on_click=analysis_site,
-                id="Button_check_links_url",
-            ),  # Хендлер принимает input_text и state
+            Const("Введите ссылку на сайт для проверки:"),
+            TextInput(
+                type_factory=validate_link,
+                on_success=correct_site,
+                on_error=error_link,
+                id="input_link",
+            ),
             Start(Const("Назад 🔙"), state=ToolSG.menu, id="tool_start_2"),
             state=ToolSG.analysis_site,
         ),
