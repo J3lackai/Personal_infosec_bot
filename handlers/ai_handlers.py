@@ -13,7 +13,6 @@ async def correct_prompt(
 ):
     async def server_busy(message: Message, dialog_manager: DialogManager, settings):
         logger.debug("Недостучались к серверу Groq")
-        await message.answer(settings.ai_busy_msg)
         await dialog_manager.switch_to(state=AISG.answer_send_menu)
 
     """Обработка ответа от Groq и вывод в диалог"""
@@ -22,6 +21,7 @@ async def correct_prompt(
         settings: GroqServerSettings = dialog_manager.middleware_data.get(
             "server_settings"
         )
+        dialog_manager.dialog_data["groq_answer"] = settings.ai_busy_msg
         prompt_text = value
         client = Groq(api_key=settings.api_key, timeout=settings.timeout)
         chat_completion = client.chat.completions.create(

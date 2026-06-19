@@ -10,7 +10,7 @@ from aiogram_dialog.widgets.kbd import (
     Back,
 )
 from states import ToolSG, StartSG
-from utils import len_validate, validate_link, email_validate
+from utils import len_validate, validate_link, email_validate, validate_pswrd
 import operator
 from getters import get_pswrd_prop, get_pswrd_case, get_pswrd
 from handlers import (
@@ -24,7 +24,8 @@ from handlers import (
     error_len_handler,
     set_default_multiselect,
     error_link,
-    error_email
+    error_email,
+    incorrect_pswrd
 )
 # отключаем стандартные callback_data для примера с on_click
 
@@ -162,6 +163,8 @@ tool_dialog = Dialog(
             Const("Введите пароль для проверки на прочность:"),
             TextInput(
                 on_success=check_password_strength,
+                type_factory=validate_pswrd,
+                on_error=incorrect_pswrd,
                 id="input_psswrd",
             ),  # Хендлер принимает input_text и state
             Start(Const("Назад 🔙"), state=ToolSG.menu, id="tool_start_8"),

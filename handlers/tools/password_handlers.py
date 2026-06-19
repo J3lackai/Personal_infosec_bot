@@ -5,7 +5,6 @@ from aiogram_dialog.widgets.kbd import ManagedMultiselect
 from aiogram.types import CallbackQuery, Message
 from aiogram_dialog import DialogManager
 from loguru import logger
-from states import ToolSG
 
 async def check_password_strength(
     message: Message,
@@ -31,16 +30,27 @@ async def check_password_strength(
         score += 3
 
     # Регистр
-    has_upper = bool(re.search(r"[A-Z]", psswrd))
-    has_lower = bool(re.search(r"[a-z]", psswrd))
-    if has_upper and has_lower:
-        score += 2
-    elif has_upper or has_lower:
-        score += 1
-        tips.append("⚠️ Используйте буквы обоих регистров")
-    else:
+    has_upper_eng = bool(re.search(r"[A-Z]", psswrd))
+    has_lower_eng = bool(re.search(r"[a-z]", psswrd))
+    has_upper_ru = bool(re.search(r"[А-ЯЁ]", psswrd))
+    has_lower_ru = bool(re.search(r"[а-яё]", psswrd))
+    no_words = not (has_upper_eng or has_lower_eng or has_upper_ru or has_lower_ru)
+    no_upper_lower = not (has_upper_eng and (has_lower_ru or has_lower_eng)or has_upper_ru and (has_lower_ru or has_lower_eng))
+    no_eng = not (has_upper_eng or has_lower_eng)
+    no_ru = not (has_upper_ru or has_lower_ru)
+    if no_words:
         tips.append("❌ Нет букв")
-
+    elif no_upper_lower:
+        tips.append("⚠️ Используйте буквы обоих регистров")
+        score+=1
+    elif no_eng:
+        tips.append("❌ Нет английских букв")
+        score+=2
+    elif no_ru:
+        tips.append("❌ Нет русских букв")
+        score+=2
+    else:
+        score+=4
     # Цифры
     if re.search(r"\d", psswrd):
         score += 1
@@ -78,7 +88,7 @@ async def check_password_strength(
         level = "🟠 Слабый"
     elif score <= 6:
         level = "🟡 Средний"
-    elif score <= 7:
+    elif score <= 8:
         level = "🟢 Сильный"
     else:
         level = "💪 Очень сильный"
@@ -168,3 +178,6 @@ async def multiselect_clicked_case(
 
 async def error_len_handler(message: Message, widget, manager, error):
     await message.answer("❌ Введите только число\nПример: 12")
+
+async def incorrect_pswrd(message: Message, widget, manager, error):
+    await message.answer("❌ Пароль не должен содержать эмоджи!")

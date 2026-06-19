@@ -13,7 +13,8 @@ from .tools import (
     error_len_handler,
     set_default_multiselect,
     error_link,
-    error_email
+    error_email,
+    incorrect_pswrd,
 )
 
 __all__ = [
@@ -33,5 +34,6 @@ __all__ = [
     "error_len_handler",
     "set_default_multiselect",
     "error_link",
-    "error_email"
+    "error_email",
+    "incorrect_pswrd"
 ]
